@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"os"
 
+	"secrets"
+
 	"github.com/emNakamoto/help_me_language/ui"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -27,14 +29,16 @@ func connectDb(username string, password string) (*sql.DB, error) {
 	// The database is called testDb
 	// db, err := sql.Open("mysql", "username:password@tcp(127.0.0.1:3306)/test")
 	var err error
-	db, err = sql.Open("mysql", username+":"+password+"@tcp(127.0.0.1:3306)/dict")
+	db, err = sql.Open("mysql", username+":"+password+"@tcp(127.0.0.1:3306)/language_database")
 	_ = db
 
 	// if there is an error opening the connection, handle it
 	if err != nil {
 		ui.PrintRed("DB connection error")
 		panic(err.Error())
+		return nil, err
 	}
+	return db, nil
 }
 
 func insert(table string, values string) {
@@ -50,7 +54,7 @@ func insert(table string, values string) {
 }
 
 func main() {
-	connectDb("root", "tEqJtT)7GLJ8KfmA", db)
+	db, err := connectDb(secrets.GetUser(), secrets.GetPassword())
 	// Execute the query
 	results, err := db.Query("SELECT * FROM dictionary")
 	if err != nil {
@@ -68,6 +72,7 @@ func main() {
 		}
 		// and then print out the tag's Name attribute
 		ui.Print(word.Word)
+		ui.Print("after word")
 	}
 
 	ui.PrintBlue("==========================================")
