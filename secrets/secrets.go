@@ -1,5 +1,6 @@
 package secrets
 
+// replace user and password
 const DbUser = "USER"
 const DbPassword = "PASSWORD"
 
