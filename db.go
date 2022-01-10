@@ -32,8 +32,86 @@ func insert(db *sql.DB, table, values string) {
 	if err != nil {
 		panic(err.Error())
 	}
-	// be careful deferring Queries if you are using transactions
-	defer insert.Close()
+	insert.Close()
+}
+
+// function to update dictionary, given language and word
+func update_dict(db *sql.DB, lang, word, meaning, tag string) {
+	var update_string string
+	// if tag is NULL, we won't need to add '' around it	
+
+	if meaning == "" && tag == "" {
+		return
+	}
+	if meaning != "" {
+		update_string = "meaning = '"+ meaning + "'"
+	}
+	if tag != "" {
+		// if we're only updating tag, we won't need to add a comma
+		if update_string != "" {
+			update_string = update_string + ", "
+		}
+		update_string = update_string + "tag = '"+ tag + "'"
+	}
+
+	query := "UPDATE dictionary SET " + update_string + "WHERE (language='" + lang + "' and word='" + word + "')"
+	    //Exec executes a database query, but it does
+	    // not return any row as result.
+	_, err := db.Exec(query)
+    if err != nil {
+        panic(err.Error()) // proper error handling instead of panic in your app
+    }	
+}
+
+// add to dictionary, if adding a new definition to a word that already exists, just update
+func add_to_dict(db *sql.DB, lang, new_word, meaning, tag string) {
+	word := Word{"", "", "", ""}
+
+	query := "SELECT * FROM dictionary WHERE (language='" + lang + "' and word='" + new_word + "')"
+
+	results, err := db.Query(query)
+	if err != nil {
+        panic(err.Error()) // proper error handling instead of panic in your app
+    }
+	for results.Next() {
+        // there should only be one entry but this should ensure the row is valid
+        err = results.Scan(&word.Language, &word.Word, &word.Meaning, &word.Tag)
+        if err != nil {
+            panic(err.Error()) 
+        }
+    }
+	// if there is no entry yet
+	if word.Word == "" {
+		
+		query = "INSERT INTO dictionary (language, word, meaning, tag) VALUES ('" + lang + "', '" + new_word + "', '" + meaning + "', '" + tag + "') "
+		_, err = db.Exec(query)
+		if err != nil {
+        	panic(err.Error()) // proper error handling instead of panic in your app
+    	}
+	} else {
+		// there should always be a meaning if we're adding to the dictionary
+		if word.Meaning != "" {
+			word.Meaning = word.Meaning + "\n\n.\n" + meaning
+		}
+		// if we're adding a new tag, just append it to the old one, null tags don't work with scan
+		// default for tags is none if none provided. If both none, tag doesn't change
+		if word.Tag == "none" && tag != "none"{
+			word.Tag = tag
+		} else if word.Tag != "none" && tag != "none" {
+			word.Tag = word.Tag + ", " + tag
+		}
+		update_dict(db, word.Language, word.Word, word.Meaning, word.Tag)
+	}
+	print("new entry added :)")
+}
+
+func delete_entry(db *sql.DB, table,condition string) {
+	query_string := "DELETE FROM " + table + " WHERE " + condition
+
+	_, err := db.Exec(query_string)
+    if err != nil {
+        panic(err.Error()) // proper error handling instead of panic in your app
+    }	
 }
 
 func query_dict(db *sql.DB, lang, word, tag string) {
@@ -62,6 +140,7 @@ func query_dict(db *sql.DB, lang, word, tag string) {
         print(word.Word)
 		print(word.Tag)
 		print(word.Meaning)
+		print("-------------------------")
     }
 }
 
